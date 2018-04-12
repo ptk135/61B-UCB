@@ -31,7 +31,9 @@ public class RunLengthEncoding implements Iterable {
    *  Define any variables associated with a RunLengthEncoding object here.
    *  These variables MUST be private.
    */
-
+	private int width;
+	private int height;
+	private DList coded;
 
 
 
@@ -50,6 +52,11 @@ public class RunLengthEncoding implements Iterable {
 
   public RunLengthEncoding(int width, int height) {
     // Your solution here.
+	  int length = width * height;
+	  int[] node = {length,0,0,0};
+	  coded = new DList(node);
+	  this.width = width;
+	  this.height = height;
   }
 
   /**
@@ -76,6 +83,16 @@ public class RunLengthEncoding implements Iterable {
   public RunLengthEncoding(int width, int height, int[] red, int[] green,
                            int[] blue, int[] runLengths) {
     // Your solution here.
+	  this.width = width;
+	  this.height = height;
+	  for(int i=0; i<runLengths.length; i++) {
+		  int[] node = new int[4];
+		  node[1] = red[i];
+		  node[2] = green[i];
+		  node[3] = blue[i];
+		  node[0] = runLengths[i];
+		  coded.insertEnd(node);
+	  }
   }
 
   /**
@@ -87,7 +104,7 @@ public class RunLengthEncoding implements Iterable {
 
   public int getWidth() {
     // Replace the following line with your solution.
-    return 1;
+    return this.width;
   }
 
   /**
@@ -98,7 +115,7 @@ public class RunLengthEncoding implements Iterable {
    */
   public int getHeight() {
     // Replace the following line with your solution.
-    return 1;
+    return this.height;
   }
 
   /**
@@ -110,7 +127,7 @@ public class RunLengthEncoding implements Iterable {
    */
   public RunIterator iterator() {
     // Replace the following line with your solution.
-    return null;
+    return new RunIterator(coded);
     // You'll want to construct a new RunIterator, but first you'll need to
     // write a constructor in the RunIterator class.
   }
@@ -123,7 +140,26 @@ public class RunLengthEncoding implements Iterable {
    */
   public PixImage toPixImage() {
     // Replace the following line with your solution.
-    return new PixImage(1, 1);
+	  PixImage image = new PixImage(width,height);
+	  RunIterator iter = this.iterator();
+	  int x = -1;
+	  int y = 0;
+	  while(iter.hasNext()) {
+		  int[] temp = iter.next();
+		  int runLong = temp[0];
+		  int red = temp[1];
+		  int green = temp[2];
+		  int blue = temp[3];
+		  for(int i=0; i<runLong; i++) {
+			  x = x+1;
+			  if(x>=width) {
+				  y = y+1;
+				  x = x%width;
+			  }
+			  image.setPixel(x, y, (short)red, (short)green, (short)blue);
+		  }
+	  }
+	  return image;
   }
 
   /**
@@ -157,6 +193,31 @@ public class RunLengthEncoding implements Iterable {
   public RunLengthEncoding(PixImage image) {
     // Your solution here, but you should probably leave the following line
     // at the end.
+	  DListNode current = null;
+	  this.height = image.getHeight();
+	  this.width = image.getWidth();
+	  for(int i=0; i<height; i++) {
+		  for(int j=0; j<width; j++) {
+			  int currentRed = image.getRed(j, i);
+			  int currentGreen = image.getGreen(j, i);
+			  int currentBlue = image.getBlue(j, i);
+			  if(this.coded == null) {
+				  int[] node = {1,currentRed,currentGreen,currentBlue};
+				  coded = new DList(node);
+				  current = coded.getHead();
+			  }
+			  else {
+				  if(current.node[1]==currentRed && current.node[2]==currentGreen && current.node[3]==currentBlue) {
+					  current.node[0]++;
+				  }
+				  else {
+					  int[] node = {1,currentRed,currentGreen,currentBlue};
+					  coded.insertEnd(node);
+					  current = current.nextNode;
+				  }
+			  }
+		  }
+	  }
     check();
   }
 
@@ -190,6 +251,89 @@ public class RunLengthEncoding implements Iterable {
   public void setPixel(int x, int y, short red, short green, short blue) {
     // Your solution here, but you should probably leave the following line
     //   at the end.
+	  int position = y*width + x + 1;
+	  int findPosition = 0;
+	  DListNode current = coded.getHead();
+	  while(findPosition < position) {
+		  findPosition = findPosition + current.node[0];
+		  current = current.nextNode;
+	  }
+	  if(current==null)
+		  current = coded.getTail();
+	  else {
+		  current = current.preNode;
+	  }
+	  int[] node = new int[4];
+	  node[1] = red;
+	  node[2] = green;
+	  node[3] = blue;
+	  node[0] = 1;
+	  DListNode temp = new DListNode(node);
+	  int currentStart = findPosition-current.node[0] + 1;
+	  int currentEnd = findPosition;
+	  int firstNum = position - currentStart;
+	  int secondNum = currentEnd - position;
+	  if(position == currentStart) {
+		  if(current.preNode==null) {
+			  current.node[0]--;
+			  temp.nextNode = current;
+			  current.preNode = temp;
+			  coded.head = temp;
+		  }
+		  else if(current.preNode.node[1]==red && current.preNode.node[2]==green && current.preNode.node[3]==blue) {
+			  current.preNode.node[0]++;
+			  current.node[0]--;
+		  }
+		  else {
+			  current.node[0]--;
+			  temp.nextNode = current;
+			  temp.preNode = current.preNode;
+			  current.preNode = temp;
+			  temp.preNode.nextNode = temp;
+		  }
+	  }
+	  else if(position == currentEnd) {
+		  if(current.nextNode==null) {
+			  current.node[0]--;
+			  temp.preNode = current;
+			  current.nextNode = temp;
+			  coded.tail = temp;
+		  }
+		  else if(current.nextNode.node[1]==red && current.nextNode.node[2]==green && current.nextNode.node[3]==blue) {
+			  current.nextNode.node[0]++;
+			  current.node[0]--;
+		  }
+		  else {
+			  current.node[0]--;
+			  temp.preNode = current;
+			  temp.nextNode = current.nextNode;
+			  current.nextNode = temp;
+			  temp.nextNode.preNode = temp;
+		  }
+	  }
+	  else {
+		  int[] node1 = new int[4];
+		  node1[1] = current.node[1];
+		  node1[2] = current.node[2];
+		  node1[3] = current.node[3];
+		  node1[0] = firstNum;
+		  DListNode temp1 = new DListNode(node1);
+		  int[] node2 = new int[4];
+		  node2[1] = current.node[1];
+		  node2[2] = current.node[2];
+		  node2[3] = current.node[3];
+		  node2[0] = secondNum;
+		  DListNode temp2 = new DListNode(node2);
+		  temp1.nextNode = temp;
+		  temp.preNode = temp1;
+		  temp.nextNode = temp2;
+		  temp2.preNode = temp1;
+		  current.preNode.nextNode = temp1;
+		  temp1.preNode = current.preNode;
+		  current.nextNode.preNode = temp2;
+		  temp.nextNode = current.nextNode;
+	  }
+	  
     check();
   }
 
